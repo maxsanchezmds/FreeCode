@@ -1,28 +1,29 @@
 const fs = require('fs');
 
-function saveVariable(variable) {
-  const variableName = Object.keys(variable)[0];
-  const variableValue = variable[variableName];
-
+function saveVariable(variables) {
   let jsonData = {};
-  
+
+  // Leer el archivo existente
   try {
     const existingData = fs.readFileSync('variables.json', 'utf8');
     if (existingData.trim()) {
       jsonData = JSON.parse(existingData);
     }
   } catch (readErr) {
-    // Ignore file not found error
     if (readErr.code !== 'ENOENT') {
       console.error('Error reading file:', readErr);
       return;
     }
   }
 
-  jsonData[variableName] = variableValue;
+  // Agregar las nuevas variables al JSON
+  Object.entries(variables).forEach(([key, value]) => {
+    jsonData[key] = value;
+    console.log(`Variable '${key}' saved successfully`);
+  });
 
+  // Guardar el archivo actualizado
   fs.writeFileSync('variables.json', JSON.stringify(jsonData, null, 2), 'utf8');
-  console.log(`Variable '${variableName}' saved successfully`);
 }
 
 module.exports = saveVariable;
