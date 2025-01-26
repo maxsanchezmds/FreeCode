@@ -61,4 +61,26 @@ function deleteVar(variable) {
   fs.writeFileSync('variables.json', JSON.stringify(jsonData, null, 2), 'utf8');
 }
 
-module.exports = { saveVar, deleteVar };
+function getAllVars() {
+  try {
+    const existingData = fs.readFileSync('variables.json', 'utf8');
+    if (existingData.trim()) {
+      const jsonData = JSON.parse(existingData);
+      console.log('All variables:', jsonData);
+      return jsonData; // Devuelve el objeto con las variables
+    } else {
+      console.log('No variables defined.');
+      return {};
+    }
+  } catch (readErr) {
+    if (readErr.code === 'ENOENT') {
+      console.log('No variables defined (file does not exist).');
+      return {};
+    } else {
+      console.error('Error reading file:', readErr);
+      return {};
+    }
+  }
+}
+
+module.exports = { saveVar, deleteVar, getAllVars };
