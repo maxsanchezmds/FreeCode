@@ -19,7 +19,6 @@ function saveVar(variables) {
   // Agregar las nuevas variables al JSON
   Object.entries(variables).forEach(([key, value]) => {
     jsonData[key] = value;
-    console.log(`Variable '${key}' saved successfully`);
   });
 
   // Guardar el archivo actualizado
@@ -83,4 +82,33 @@ function getAllVars() {
   }
 }
 
-module.exports = { saveVar, deleteVar, getAllVars };
+function getVar(variableName) {
+  try {
+    const existingData = fs.readFileSync('variables.json', 'utf8');
+    if (existingData.trim()) {
+      const jsonData = JSON.parse(existingData);
+
+      // Verificar si la variable existe en el JSON
+      if (variableName in jsonData) {
+        return jsonData[variableName]; // Devuelve solo el valor
+      } else {
+        console.log(`Variable '${variableName}' does not exist.`);
+        return null;
+      }
+    } else {
+      console.log('No variables defined.');
+      return null;
+    }
+  } catch (readErr) {
+    if (readErr.code === 'ENOENT') {
+      console.log('No variables defined (file does not exist).');
+      return null;
+    } else {
+      console.error('Error reading file:', readErr);
+      return null;
+    }
+  }
+}
+
+
+module.exports = { saveVar, deleteVar, getAllVars, getVar };
