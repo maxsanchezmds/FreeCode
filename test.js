@@ -1,7 +1,8 @@
-const saveVariable = require('./index');
+const { saveVar, deleteVar } = require('./index');
 
-let numero20 = 20;
-let numero30 = 30;
-let numero198 = 198;
+// Guardar variables
+let numero20 = [10, 20, 30, 40];
+let numero30 = 20;
+let numero198 = 30;
 
-saveVariable({numero20});
+saveVar({ numero20, numero30, numero198 });
