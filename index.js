@@ -1,11 +1,14 @@
 const fs = require('fs');
+const path = require('path');
+
+const variablesFilePath = path.join(__dirname, 'variables.json');
 
 function saveVar(variables) {
   let jsonData = {};
 
   // Leer el archivo existente
   try {
-    const existingData = fs.readFileSync('variables.json', 'utf8');
+    const existingData = fs.readFileSync(variablesFilePath, 'utf8');
     if (existingData.trim()) {
       jsonData = JSON.parse(existingData);
     }
@@ -22,7 +25,7 @@ function saveVar(variables) {
   });
 
   // Guardar el archivo actualizado
-  fs.writeFileSync('variables.json', JSON.stringify(jsonData, null, 2), 'utf8');
+  fs.writeFileSync(variablesFilePath, JSON.stringify(jsonData, null, 2), 'utf8');
 }
 
 function deleteVar(variable) {
@@ -30,7 +33,7 @@ function deleteVar(variable) {
 
   // Leer el archivo existente
   try {
-    const existingData = fs.readFileSync('variables.json', 'utf8');
+    const existingData = fs.readFileSync(variablesFilePath, 'utf8');
     if (existingData.trim()) {
       jsonData = JSON.parse(existingData);
     }
@@ -57,12 +60,12 @@ function deleteVar(variable) {
   }
 
   // Guardar el archivo actualizado
-  fs.writeFileSync('variables.json', JSON.stringify(jsonData, null, 2), 'utf8');
+  fs.writeFileSync(variablesFilePath, JSON.stringify(jsonData, null, 2), 'utf8');
 }
 
-function getAllVars() {
+function seeAllVars() {
   try {
-    const existingData = fs.readFileSync('variables.json', 'utf8');
+    const existingData = fs.readFileSync(variablesFilePath, 'utf8');
     if (existingData.trim()) {
       const jsonData = JSON.parse(existingData);
       console.log('All variables:', jsonData);
@@ -84,7 +87,7 @@ function getAllVars() {
 
 function getVar(variableName) {
   try {
-    const existingData = fs.readFileSync('variables.json', 'utf8');
+    const existingData = fs.readFileSync(variablesFilePath, 'utf8');
     if (existingData.trim()) {
       const jsonData = JSON.parse(existingData);
 
@@ -111,4 +114,4 @@ function getVar(variableName) {
 }
 
 
-module.exports = { saveVar, deleteVar, getAllVars, getVar };
+module.exports = { saveVar, deleteVar, seeAllVars, getVar };

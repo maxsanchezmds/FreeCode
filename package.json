@@ -1,6 +1,6 @@
 {
-  "name": "freecode",
-  "version": "1.0.0",
+  "name": "dualcode",
+  "version": "2.0.0",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -9,11 +9,11 @@
     "type": "git",
     "url": "git+https://github.com/maxsanchezmds/FreeCode.git"
   },
-  "author": "",
+  "author": "Maximiliano David Sanchez",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/maxsanchezmds/FreeCode/issues"
   },
   "homepage": "https://github.com/maxsanchezmds/FreeCode#readme",
-  "description": ""
+  "description": "A package designed to use variables regardless of whether they are python or javascript."
 }
