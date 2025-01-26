@@ -1,7 +1,92 @@
 const fs = require('fs');
 const path = require('path');
+const { spawn } = require('child_process');
+
+/**
+ * Runs a Python function with given arguments
+ * @param {string} pythonFilePath - Full path to the Python script
+ * @param {string} functionName - Name of the function to call
+ * @param {Array} args - Arguments to pass to the function
+ * @returns {Promise} Promise resolving to the function's return value
+ */
 
 const variablesFilePath = path.join(__dirname, 'variables.json');
+
+
+
+function runPythonFunction(pythonFilePath, functionName, args = []) {
+  return new Promise((resolve, reject) => {
+    // Construct the Python script to import the module and call the function
+    const pythonCode = `
+import sys
+import json
+
+# Add the directory of the script to Python path
+sys.path.append('${path.dirname(pythonFilePath)}')
+
+# Import the module dynamically
+module_name = '${path.basename(pythonFilePath, '.py')}'
+module = __import__(module_name)
+
+# Get the function
+func = getattr(module, '${functionName}')
+
+# Convert arguments to Python types
+python_args = ${JSON.stringify(args)}
+
+# Call the function and print the result
+try:
+    result = func(*python_args)
+    print(json.dumps(result))
+except Exception as e:
+    print(json.dumps({'error': str(e)}), file=sys.stderr)
+`;
+
+    // Spawn a Python process
+    const python = spawn('python3', ['-c', pythonCode]);
+
+    let output = '';
+    let errorOutput = '';
+
+    // Collect stdout
+    python.stdout.on('data', (data) => {
+      output += data.toString();
+    });
+
+    // Collect stderr
+    python.stderr.on('data', (data) => {
+      errorOutput += data.toString();
+    });
+
+    // Handle process close
+    python.on('close', (code) => {
+      if (code !== 0) {
+        reject(new Error(`Python script failed with code ${code}. Error: ${errorOutput}`));
+        return;
+      }
+
+      try {
+        // Parse the JSON output
+        const result = JSON.parse(output.trim());
+        
+        // Check if the result is an error object
+        if (result && result.error) {
+          reject(new Error(result.error));
+        } else {
+          resolve(result);
+        }
+      } catch (parseError) {
+        reject(new Error(`Failed to parse Python output: ${output}`));
+      }
+    });
+
+    // Handle spawn errors
+    python.on('error', (err) => {
+      reject(new Error(`Failed to spawn Python process: ${err.message}`));
+    });
+  });
+}
+
 
 function saveVar(variables) {
   let jsonData = {};
@@ -114,4 +199,4 @@ function getVar(variableName) {
 }
 
 
-module.exports = { saveVar, deleteVar, seeAllVars, getVar };
+module.exports = { saveVar, deleteVar, seeAllVars, getVar, runPythonFunction };

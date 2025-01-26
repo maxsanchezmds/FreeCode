@@ -1,1 +1,1 @@
-const { saveVar, deleteVar, seeAllVars, getVar } = require('./index');
+const { saveVar, deleteVar, seeAllVars, getVar, runPythonFunction} = require('./index');
