@@ -2,91 +2,145 @@ const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
 
-/**
- * Runs a Python function with given arguments
- * @param {string} pythonFilePath - Full path to the Python script
- * @param {string} functionName - Name of the function to call
- * @param {Array} args - Arguments to pass to the function
- * @returns {Promise} Promise resolving to the function's return value
- */
-
 const variablesFilePath = path.join(__dirname, 'variables.json');
 
+function getPythonCommand() {
+  if (process.platform === 'win32') {
+    try {
+      const result = spawn('python', ['--version']);
+      return 'python';
+    } catch (e) {
+      return 'py';
+    }
+  }
+  return 'python3';
+}
 
-
-function runPythonFunction(pythonFilePath, functionName, args = []) {
+/**
+ * Runs any Python function from any file with provided arguments
+ * @param {string} pythonFilePath - Path to the Python file (relative or absolute)
+ * @param {string} functionName - Name of the function to execute
+ * @param {Array} args - Arguments to pass to the function (optional)
+ * @returns {Promise} Promise resolving to the function's return value
+ */
+async function runPythonFunction(pythonFilePath, functionName, args = []) {
+  const absolutePath = path.isAbsolute(pythonFilePath) 
+    ? pythonFilePath 
+    : path.resolve(process.cwd(), pythonFilePath);
+    
   return new Promise((resolve, reject) => {
-    // Construct the Python script to import the module and call the function
+    if (!fs.existsSync(absolutePath)) {
+      reject(new Error(`Python file not found: ${absolutePath}`));
+      return;
+    }
+
+    const scriptDir = path.dirname(absolutePath);
+    const moduleName = path.basename(absolutePath, '.py');
+
+    // The Python code now uses a special marker to separate printed output from the return value
     const pythonCode = `
 import sys
 import json
+import os
+from importlib import util, machinery
 
-# Add the directory of the script to Python path
-sys.path.append('${path.dirname(pythonFilePath)}')
+# Prepare paths for module import
+script_dir = r'${scriptDir.replace(/\\/g, '\\\\')}'
+script_path = r'${absolutePath.replace(/\\/g, '\\\\')}'
 
-# Import the module dynamically
-module_name = '${path.basename(pythonFilePath, '.py')}'
-module = __import__(module_name)
+if script_dir not in sys.path:
+    sys.path.insert(0, script_dir)
 
-# Get the function
-func = getattr(module, '${functionName}')
-
-# Convert arguments to Python types
-python_args = ${JSON.stringify(args)}
-
-# Call the function and print the result
 try:
-    result = func(*python_args)
-    print(json.dumps(result))
+    loader = machinery.SourceFileLoader('${moduleName}', script_path)
+    spec = util.spec_from_loader(loader.name, loader)
+    module = util.module_from_spec(spec)
+    loader.exec_module(module)
 except Exception as e:
-    print(json.dumps({'error': str(e)}), file=sys.stderr)
+    print(json.dumps({'error': f'Failed to import {script_path}: {str(e)}'}), file=sys.stderr)
+    sys.exit(1)
+
+if not hasattr(module, '${functionName}'):
+    print(json.dumps({'error': f'Function {functionName} not found in {script_path}'}), file=sys.stderr)
+    sys.exit(1)
+
+try:
+    # Store the original stdout
+    original_stdout = sys.stdout
+    
+    # Create a string buffer for our actual result
+    from io import StringIO
+    result_output = StringIO()
+    
+    try:
+        # Execute function with original stdout for any print statements
+        func = getattr(module, '${functionName}')
+        result = func(*${JSON.stringify(args)})
+        
+        # Switch to our result buffer and output the actual return value
+        sys.stdout = result_output
+        print(json.dumps(result))
+        
+    finally:
+        # Restore original stdout
+        sys.stdout = original_stdout
+    
+    # Get the actual result (last line of output)
+    print(result_output.getvalue().strip())
+    
+except Exception as e:
+    print(json.dumps({'error': f'Error executing {functionName}: {str(e)}'}), file=sys.stderr)
+    sys.exit(1)
 `;
 
-    // Spawn a Python process
-    const python = spawn('python3', ['-c', pythonCode]);
+    const pythonCmd = getPythonCommand();
+    const python = spawn(pythonCmd, ['-c', pythonCode], {
+      cwd: scriptDir
+    });
 
     let output = '';
     let errorOutput = '';
 
-    // Collect stdout
     python.stdout.on('data', (data) => {
       output += data.toString();
     });
 
-    // Collect stderr
     python.stderr.on('data', (data) => {
       errorOutput += data.toString();
     });
 
-    // Handle process close
     python.on('close', (code) => {
       if (code !== 0) {
-        reject(new Error(`Python script failed with code ${code}. Error: ${errorOutput}`));
+        reject(new Error(`Python script failed with code ${code}. Error: ${errorOutput || 'No error message provided'}`));
         return;
       }
 
       try {
-        // Parse the JSON output
-        const result = JSON.parse(output.trim());
+        // Get the last line of output, which should contain our result
+        const lastLine = output.trim().split('\n').pop();
         
-        // Check if the result is an error object
-        if (result && result.error) {
-          reject(new Error(result.error));
+        // Parse the last line as our result
+        const parsedOutput = JSON.parse(lastLine);
+        
+        if (parsedOutput && typeof parsedOutput === 'object' && parsedOutput.error) {
+          reject(new Error(parsedOutput.error));
         } else {
-          resolve(result);
+          resolve(parsedOutput);
         }
       } catch (parseError) {
         reject(new Error(`Failed to parse Python output: ${output}`));
       }
     });
 
-    // Handle spawn errors
     python.on('error', (err) => {
-      reject(new Error(`Failed to spawn Python process: ${err.message}`));
+      if (err.code === 'ENOENT') {
+        reject(new Error(`Python (${pythonCmd}) is not installed or not in PATH. Please install Python and try again.`));
+      } else {
+        reject(new Error(`Failed to spawn Python process: ${err.message}`));
+      }
     });
   });
 }
-
 
 function saveVar(variables) {
   let jsonData = {};
